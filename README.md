@@ -80,7 +80,6 @@ OPEN → INVESTIGATING → RESOLVED → CLOSED
 | Containerization | Docker Compose         |
 
 ---
-
 # Repository Structure
 
 ```text
@@ -93,11 +92,16 @@ ims-project/
 │   ├── sample_signals.py
 │   ├── requirements.txt
 │   ├── Dockerfile
-│   └── start.sh
+│   ├── start.sh
+│   │
+│   └── tests/
+│       └── test_rca.py
 │
 ├── frontend/
 │   └── index.html
 │
+├── architecture.png
+├── PROMPTS.md
 ├── docker-compose.yml
 ├── README.md
 └── .gitignore
@@ -368,6 +372,34 @@ MTTR is calculated as:
 ```text
 RCA Submission Time - Incident Creation Time
 ```
+
+---
+
+# Testing
+
+Basic unit tests were added for RCA validation logic.
+
+The validation logic was extracted into a reusable function:
+
+```python
+is_valid_rca(rca)
+```
+
+This function is used by:
+- RCA submission validation
+- Incident close validation
+- Unit test cases
+
+Run tests using:
+
+```bash
+python backend/tests/test_rca.py
+```
+
+The tests validate:
+- Empty RCA rejection
+- Spaces-only RCA rejection
+- Valid RCA acceptance
 
 ---
 
