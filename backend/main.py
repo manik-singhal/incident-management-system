@@ -36,6 +36,11 @@ r = redis.Redis(host="redis", port=6379, decode_responses=True)
 
 conn = sqlite3.connect("ims.db", check_same_thread=False)
 
+def is_valid_rca(rca):
+    if not rca or rca.strip() == "":
+        return False
+    return True
+
 def refresh_cache():
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM incidents ORDER BY created_at DESC")
@@ -159,7 +164,7 @@ def update_status(incident_id: int, status: str):
       "error": f"Invalid transition from {current_status} to {status}"
     }  
 
-  if status == "CLOSED" and (not rca or rca.strip() == ""):
+  if status == "CLOSED" and not is_valid_rca(rca):
     return {"error": "Cannot close incident without RCA"}
 
   if status == "CLOSED":
@@ -182,7 +187,7 @@ def update_status(incident_id: int, status: str):
 @app.post("/incidents/{incident_id}/rca")
 def add_rca(incident_id: int, rca: str):
 
-  if not rca or rca.strip() == "":
+  if not is_valid_rca(rca):
     return {"error": "RCA cannot be empty"}
 
   cursor = conn.cursor()
