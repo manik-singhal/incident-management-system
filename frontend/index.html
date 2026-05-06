@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Inicdent Mangement System</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .container {
+      display: flex;
+      gap: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      flex: 1;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+
+    li:hover {
+      background: #f7f7f7;
+    }
+
+    .badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      color: white;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+
+    .P0 {
+      background: red;
+    }
+
+    .P1 {
+      background: orange;
+    }
+
+    .P2 {
+      background: blue;
+    }
+
+    .P3 {
+      background: gray;
+    }
+
+    .status {
+      font-size: 13px;
+      color: gray;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 10px;
+      background: black;
+      color: white;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    button:hover {
+      opacity: 0.8;
+    }
+
+    .signal-box {
+      background: #fafafa;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+
+    .metric {
+      margin-top: 5px;
+      font-size: 14px;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<h1>Incident Management System</h1>
+
+<div class="container">
+
+  <!-- LEFT SIDE -->
+  <div class="card">
+
+    <h2>Live Incidents</h2>
+
+    <ul id="incidentList"></ul>
+
+  </div>
+
+  <!-- RIGHT SIDE -->
+  <div class="card">
+
+    <h2>Incident Detail</h2>
+
+    <div id="incidentDetail">
+      Click an incident
+    </div>
+
+    <hr>
+
+    <h3>Update Status</h3>
+
+    <select id="statusSelect">
+      <option value="OPEN">OPEN</option>
+      <option value="INVESTIGATING">INVESTIGATING</option>
+      <option value="RESOLVED">RESOLVED</option>
+      <option value="CLOSED">CLOSED</option>
+    </select>
+
+    <button onclick="updateStatus()">Update Status</button>
+
+    <hr>
+
+    <h3>RCA Form</h3>
+
+    <select id="categoryInput">
+
+      <option value="Database Failure">
+        Database Failure
+      </option>
+
+      <option value="API Failure">
+        API Failure
+      </option>
+
+      <option value="Cache Failure">
+        Cache Failure
+      </option>
+
+      <option value="Queue Failure">
+        Queue Failure
+      </option>
+
+      <option value="Infrastructure Failure">
+        Infrastructure Failure
+      </option>
+
+    </select>
+
+    <textarea id="fixInput" placeholder="Fix Applied"></textarea>
+
+    <textarea id="preventionInput" placeholder="Prevention Steps"></textarea>
+
+    <button onclick="submitRCA()">Submit RCA</button>
+
+  </div>
+
+</div>
+
+<script>
+
+let selectedIncidentId = null;
+
+async function loadIncidents() {
+
+  const res = await fetch("http://127.0.0.1:8000/incidents");
+
+  const data = await res.json();
+
+  const severityOrder = {
+    "P0": 0,
+    "P1": 1,
+    "P2": 2,
+    "P3": 3
+  };
+
+  data.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+
+  const list = document.getElementById("incidentList");
+
+  list.innerHTML = "";
+
+  data.forEach(inc => {
+
+    const li = document.createElement("li");
+
+    li.innerHTML = `
+      <b>${inc.component_id}</b>
+
+      <span class="badge ${inc.severity}">
+        ${inc.severity}
+      </span>
+
+      <div class="status">
+        Status: ${inc.status}
+      </div>
+
+      <div class="metric">
+        Signals: ${inc.count}
+      </div>
+
+      <div class="metric">
+        MTTR:
+        ${inc.mttr ? inc.mttr.toFixed(2) + " sec" : "N/A"}
+      </div>
+    `;
+
+    li.onclick = () => showDetail(inc);
+
+    list.appendChild(li);
+
+  });
+
+}
+
+async function showDetail(inc) {
+
+  selectedIncidentId = inc.id;
+
+  const res = await fetch(
+    `http://127.0.0.1:8000/incidents/${inc.id}/signals`
+  );
+
+  const signals = await res.json();
+
+  let signalHTML = "";
+
+  if (signals.length === 0) {
+
+    signalHTML = "No linked signals";
+
+  } else {
+
+    signals.forEach(sig => {
+
+      signalHTML += `
+        <div style="
+          margin-bottom:10px;
+          padding:8px;
+          background:#f7f7f7;
+          border-radius:6px;
+        ">
+
+          <div>
+            <b>Component:</b>
+            ${sig.component_id}
+          </div>
+
+          <div>
+            <b>Signal Time:</b>
+            ${new Date(sig.created_at * 1000).toLocaleTimeString()}
+          </div>
+
+        </div>
+      `;
+
+    });
+
+  }
+
+  document.getElementById("incidentDetail").innerHTML = `
+
+    <div><b>ID:</b> ${inc.id}</div>
+
+    <div><b>Component:</b> ${inc.component_id}</div>
+
+    <div><b>Status:</b> ${inc.status}</div>
+
+    <div><b>Severity:</b> ${inc.severity}</div>
+
+    <div><b>Total Signals:</b> ${inc.count}</div>
+
+    <div>
+      <b>Incident Start:</b>
+      ${new Date(inc.created_at * 1000).toLocaleString()}
+    </div>
+
+    <div>
+      <b>Incident End:</b>
+      ${
+        inc.resolved_at
+        ? new Date(inc.resolved_at * 1000).toLocaleString()
+        : "Not resolved"
+      }
+    </div>
+
+    <div>
+      <b>MTTR:</b>
+      ${inc.mttr ? inc.mttr.toFixed(2) + " sec" : "N/A"}
+    </div>
+
+    <div>
+      <b>RCA:</b>
+      ${inc.rca || "Not submitted"}
+    </div>
+
+    <h3>Linked Signals</h3>
+
+    <div class="signal-box">
+      ${signalHTML}
+    </div>
+
+  `;
+
+}
+
+async function updateStatus() {
+
+  if (!selectedIncidentId) {
+    alert("Select incident first");
+    return;
+  }
+
+  const status =
+    document.getElementById("statusSelect").value;
+
+  const res = await fetch(
+    `http://127.0.0.1:8000/incidents/${selectedIncidentId}/status?status=${status}`,
+    {
+      method: "POST"
+    }
+  );
+
+  const data = await res.json();
+
+  if (data.error) {
+    alert(data.error);
+  } else {
+    alert("Status updated");
+  }
+
+  loadIncidents();
+
+}
+
+async function submitRCA() {
+
+  if (!selectedIncidentId) {
+    alert("Select incident first");
+    return;
+  }
+
+  const category =
+    document.getElementById("categoryInput").value;
+
+  const fix =
+    document.getElementById("fixInput").value;
+
+  const prevention =
+    document.getElementById("preventionInput").value;
+
+  const finalRCA = `
+Category: ${category}
+
+Fix Applied:
+${fix}
+
+Prevention Steps:
+${prevention}
+  `;
+
+  const res = await fetch(
+    `http://127.0.0.1:8000/incidents/${selectedIncidentId}/rca?rca=${encodeURIComponent(finalRCA)}`,
+    {
+      method: "POST"
+    }
+  );
+
+  const data = await res.json();
+
+  if (data.error) {
+    alert(data.error);
+  } else {
+    alert("RCA submitted");
+  }
+
+  loadIncidents();
+
+}
+
+setInterval(loadIncidents, 3000);
+
+loadIncidents();
+
+</script>
+
+</body>
+</html>
