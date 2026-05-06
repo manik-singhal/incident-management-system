@@ -8,7 +8,7 @@ The system ingests high-volume failure signals asynchronously, aggregates noisy 
 
 # Architecture Diagram
 
-![Architecture Diagram](documents/architecture.png)
+![Architecture Diagram](architecture.png)
 
 ---
 
